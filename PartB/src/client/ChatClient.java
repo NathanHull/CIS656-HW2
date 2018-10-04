@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.net.Socket;
 import java.io.*;
+import java.util.Vector;
 
 import compute.*;
 
@@ -48,6 +49,11 @@ public class ChatClient {
 
             RegistrationInfo reg = new RegistrationInfo(userName, host, port, true);
 
+            Socket receiveSocket = new Socket("localhost", port);
+
+            Thread acceptThread = new Thread(new ProcessIncomingRequest(receiveSocket));
+            acceptThread.start();
+
             Registry registry = LocateRegistry.getRegistry(host, port);
             PresenceService service = (PresenceService) registry.lookup(registryName);
             service.register(reg);
@@ -71,7 +77,11 @@ public class ChatClient {
                 switch (userChoice) {
                     case 0:
                         System.out.println("Friends:");
-                        System.out.println(service.listRegisteredUsers());
+                        Vector<RegistrationInfo> userList = service.listRegisteredUsers();
+                        for (RegistrationInfo RI : userList) {
+                            if (!RI.getUserName().equals(userName))
+                                System.out.println("User: " + RI.getUserName());
+                        }
                         break;
                     case 1:
                         System.out.println("Talk: to who?");
@@ -85,7 +95,7 @@ public class ChatClient {
                             String message = scanner.nextLine();
 
                             Socket socket = new Socket(targetRI.getHost(), targetRI.getPort());
-                        new PrintStream(socket.getOutputStream()).println(message);
+                            new PrintStream(socket.getOutputStream()).println(message);
                             socket.close();
                         }
                         break;
@@ -96,7 +106,7 @@ public class ChatClient {
 
                         Vector<RegistrationInfo> targetRIs = service.listRegisteredUsers();
                         for (RegistrationInfo RI : targetRIs) {
-                            if (RI.getStatus()) {
+                            if (RI.getStatus() && !RI.getUserName().equals(userName)) {
                                 Socket socket = new Socket(RI.getHost(), RI.getPort());
                                 new PrintStream(socket.getOutputStream()).println(message);
                                 socket.close();
@@ -112,6 +122,7 @@ public class ChatClient {
                         service.updateRegistrationInfo(new RegistrationInfo(userName, host, port, true));
                         break;
                     case 5:
+                        service.unregister(userName);
                         System.exit(0);
                     default:
                         System.out.println("Invalid input");
