@@ -6,12 +6,16 @@ import java.rmi.registry.Registry;
 
 import java.util.Scanner;
 import java.util.Vector;
+import java.util.Vector;
 
 import java.util.ArrayList;
 import java.util.InputMismatchException;
+
 import java.net.Socket;
-import java.io.*;
-import java.util.Vector;
+import java.net.ServerSocket;
+import java.net.InetAddress;
+
+import java.io.PrintStream;
 
 import compute.*;
 
@@ -31,34 +35,41 @@ public class ChatClient {
 
             String registryName = "Chat";
             String userName = args[0];
-            String host = "localhost";
-            int port = 1099;
+
+            String rmihost = "localhost";
+            int rmiport = 1099;
 
             // If they exist, get program args
             if (args.length > 1) {
                 String passedHost = args[1];
                 String[] splitHost = passedHost.split(":");
                 if (splitHost.length > 1) {
-                    host = splitHost[0];
-                    port = Integer.parseInt(splitHost[1]);
+                    rmihost = splitHost[0];
+                    rmiport = Integer.parseInt(splitHost[1]);
                 }
                 else {
-                    host = passedHost;
+                    rmihost = passedHost;
                 }
             }
 
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("Input receiving port:");
+            int port = scanner.nextInt();
+
+            String host = InetAddress.getLocalHost().getHostAddress();
+            System.out.println("Your socket: " + host + ":" + port);
+
             RegistrationInfo reg = new RegistrationInfo(userName, host, port, true);
 
-            Socket receiveSocket = new Socket("localhost", port);
+            ServerSocket receiveSocket = new ServerSocket(port);
 
             Thread acceptThread = new Thread(new ProcessIncomingRequest(receiveSocket));
             acceptThread.start();
 
-            Registry registry = LocateRegistry.getRegistry(host, port);
+            Registry registry = LocateRegistry.getRegistry(rmihost, rmiport);
             PresenceService service = (PresenceService) registry.lookup(registryName);
             service.register(reg);
 
-            Scanner scanner = new Scanner(System.in);
             System.out.println();
             
             while (true) {
@@ -97,6 +108,8 @@ public class ChatClient {
                             Socket socket = new Socket(targetRI.getHost(), targetRI.getPort());
                             new PrintStream(socket.getOutputStream()).println(message);
                             socket.close();
+                        } else if (!targetRI.getStatus()) {
+                            System.out.println("User busy");
                         }
                         break;
                     case 2:
@@ -123,6 +136,7 @@ public class ChatClient {
                         break;
                     case 5:
                         service.unregister(userName);
+                        receiveSocket.close();
                         System.exit(0);
                     default:
                         System.out.println("Invalid input");

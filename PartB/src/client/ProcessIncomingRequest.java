@@ -4,12 +4,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.SocketException;
 import java.net.Socket;
+import java.net.ServerSocket;
 
 public class ProcessIncomingRequest implements Runnable {
-    private Socket receiveSocket;
+    private ServerSocket receiveSocket;
 
-    public ProcessIncomingRequest(Socket receiveSocket) {
+    public ProcessIncomingRequest(ServerSocket receiveSocket) {
         super();
         this.receiveSocket = receiveSocket;
     }
@@ -19,20 +21,24 @@ public class ProcessIncomingRequest implements Runnable {
         String line;
         BufferedReader is;
 
-        try {
-            is = new BufferedReader(new InputStreamReader(receiveSocket.getInputStream()));
+        while (true) {
+            try {
+                Socket socket = receiveSocket.accept();
 
-            while(true) {
-                line = is.readLine();
-                if(line == null) {
-                    break;
+                is = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    
+                while(true) {
+                    line = is.readLine();
+                    if(line == null) {
+                        break;
+                    }
+                    System.out.println("Received: " + line);
                 }
-                System.out.println("Received: " + line);
+            } catch (SocketException e) {
+                System.exit(0);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
-
     }
 }
